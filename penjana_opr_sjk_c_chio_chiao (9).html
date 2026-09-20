@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penjana OPR SJK(C) Chio Chiao</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2pdf.js for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Varela+Round&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* A4 Paper setup for preview - Fixed A4 dimensions (210mm x 297mm) */
+        .a4-paper {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin: 0 auto;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            /* Pink gradient side borders as seen in reference */
+            background-image: 
+                linear-gradient(to right, rgba(255,192,203,0.35) 0%, rgba(255,255,255,0) 4%),
+                linear-gradient(to left, rgba(255,192,203,0.35) 0%, rgba(255,255,255,0) 4%);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* Content wrapper that will be auto-scaled for text fitting */
+        #content-wrapper {
+            padding: 12mm 15mm;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            transition: font-size 0.15s ease;
+            font-size: 10.5pt;
+        }
+
+        /* Custom Styles for OPR Boxes */
+        .box-container {
+            position: relative;
+            border: 2px solid #f39c12;
+            border-radius: 12px;
+            padding: 16px 12px 10px 12px;
+            margin-top: 20px;
+            background: white;
+        }
+        
+        .box-title {
+            position: absolute;
+            top: -14px;
+            left: 10px;
+            background-color: #8b23a7;
+            color: white;
+            font-family: 'Varela Round', 'Inter', sans-serif;
+            padding: 2px 16px;
+            border-radius: 20px;
+            font-size: 1.05em;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+
+        .details-label {
+            width: 95px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .details-row {
+            display: flex;
+            margin-bottom: 2px;
+            line-height: 1.3;
+        }
+
+        .details-colon {
+            margin-right: 8px;
+        }
+
+        /* 2x2 Square Image Grid */
+        .img-grid-2x2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            height: 100%;
+            width: 100%;
+        }
+        
+        .img-item {
+            border: 3px solid #f39c12;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #f8fafc;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .img-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+            user-select: none;
+        }
+        
+        /* Drag Container */
+        .drag-container {
+            cursor: grab;
+            touch-action: none;
+        }
+        .drag-container:active {
+            cursor: grabbing;
+        }
+
+        /* Print Specific Styles */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+            
+            body, html { 
+                background: white !important; 
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+            }
+            
+            #editor-section, .no-print, #mobile-nav-bar { 
+                display: none !important; 
+            }
+            
+            #preview-section {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+                overflow: visible !important;
+            }
+
+            #paper-scale-wrapper {
+                transform: none !important;
+                height: auto !important;
+            }
+            
+            .a4-paper {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                border: none !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                page-break-inside: avoid !important;
+                transform: none !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen md:h-screen flex flex-col md:flex-row overflow-y-auto md:overflow-hidden bg-slate-900 text-slate-800">
+
+    <!-- MOBILE QUICK NAVIGATION BAR (Only visible on small screens) -->
+    <div id="mobile-nav-bar" class="md:hidden sticky top-0 z-50 bg-purple-900 text-white px-4 py-2.5 flex justify-between items-center shadow-lg border-b border-purple-700">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-mobile-screen-button text-amber-400"></i>
+            <span class="text-xs font-bold tracking-wide">MOD TELEFON</span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="scrollToSection('editor-section')" class="bg-purple-800 hover:bg-purple-700 text-xs px-2.5 py-1 rounded text-purple-100 font-medium border border-purple-600">
+                <i class="fa-solid fa-pen-to-square"></i> Editor
+            </button>
+            <button onclick="scrollToSection('preview-section')" class="bg-amber-500 hover:bg-amber-600 text-xs px-2.5 py-1 rounded text-slate-900 font-bold shadow">
+                <i class="fa-solid fa-eye"></i> OPR Preview
+            </button>
+        </div>
+    </div>
+
+    <!-- LEFT COLUMN: Data Editor (Full height scrollable on mobile, fixed column on desktop) -->
+    <div id="editor-section" class="w-full md:w-1/3 bg-white border-r shadow-2xl flex flex-col shrink-0 z-10 min-w-0 md:min-w-[360px] md:h-full">
+        
+        <!-- Header Editor -->
+        <div class="bg-purple-900 text-white p-4 shadow-md flex justify-between items-center shrink-0">
+            <div>
+                <h1 class="text-lg font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Penjana OPR
+                </h1>
+                <p class="text-xs text-purple-200 mt-0.5">SJK (C) Chio Chiao, Salak</p>
+            </div>
+            <span class="bg-amber-500 text-slate-950 text-[10px] px-2.5 py-1 rounded-full font-extrabold uppercase tracking-wider shadow">A4 Auto-Fit</span>
+        </div>
+
+        <!-- Form Elements Container -->
+        <div class="p-4 md:p-5 flex-1 md:overflow-y-auto custom-scrollbar space-y-5">
+            
+            <!-- 1. Butiran Program -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <h2 class="font-bold text-purple-900 mb-1 flex items-center gap-2 text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-calendar-check text-amber-500"></i> 1. Butiran Program
+                </h2>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Nama Program</label>
+                    <input type="text" id="in-nama" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs uppercase" placeholder="Cth: KARNIVAL KITA STEM SUPERNOVA">
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Tarikh</label>
+                        <input type="date" id="in-tarikh" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Hari (Automatik)</label>
+                        <input type="text" id="in-hari" readonly class="w-full p-2 border border-slate-200 rounded-lg bg-slate-200 text-slate-600 text-xs cursor-not-allowed uppercase font-bold text-center" placeholder="-">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Masa Mula</label>
+                        <input type="time" id="in-masa-mula" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Masa Tamat</label>
+                        <input type="time" id="in-masa-tamat" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Tempat</label>
+                    <input type="text" id="in-tempat" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs uppercase" placeholder="Cth: DEWAN LESTARI">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Anjuran</label>
+                    <input type="text" id="in-anjuran" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs uppercase" placeholder="Cth: PANITIA SAINS">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Sasaran</label>
+                    <input type="text" id="in-sasaran" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs uppercase" placeholder="Cth: 4 ORANG MURID TAHUN 5">
+                </div>
+            </div>
+
+            <!-- 2. Gambar -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <h2 class="font-bold text-purple-900 mb-1 flex items-center gap-2 text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-images text-amber-500"></i> 2. Gambar (Maksima 4)
+                </h2>
+                <p class="text-[10px] text-slate-500 mb-2.5">Muat naik sehingga 4 gambar. <span class="font-bold text-amber-600">Klik & seret (drag)</span> gambar pada pratonton OPR untuk melaraskan kedudukan fokus.</p>
+                <input type="file" id="in-gambar" accept="image/*" multiple class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-100 file:text-purple-800 hover:file:bg-purple-200">
+                <p id="img-warning" class="text-[10px] text-red-500 mt-1.5 font-semibold hidden"><i class="fa-solid fa-triangle-exclamation"></i> Hanya 4 gambar pertama sahaja digunakan.</p>
+            </div>
+
+            <!-- 3. Laporan & Impak -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <h2 class="font-bold text-purple-900 mb-1 flex items-center gap-2 text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-pen-nib text-amber-500"></i> 3. Pengisian Laporan
+                </h2>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Objektif Program</label>
+                    <textarea id="in-objektif" rows="2" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs" placeholder="Nyatakan objektif program..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Aktiviti Program</label>
+                    <textarea id="in-ringkasan" rows="3" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs" placeholder="Ringkaskan aktiviti yang dijalankan..."></textarea>
+                </div>
+                <div class="p-3 border border-slate-300 rounded-lg bg-white space-y-2.5">
+                    <span class="text-xs font-bold text-slate-800 block border-b pb-1">Impak Program</span>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-600">Kekuatan Program</label>
+                        <textarea id="in-kekuatan" rows="2" class="w-full p-1.5 border border-slate-300 rounded text-xs" placeholder="Kelebihan / pencapaian..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-600">Kelemahan Program</label>
+                        <textarea id="in-kelemahan" rows="2" class="w-full p-1.5 border border-slate-300 rounded text-xs" placeholder="Isu / kekangan yang dihadapi..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-600">Cadangan Penambahbaikan</label>
+                        <textarea id="in-cadangan" rows="2" class="w-full p-1.5 border border-slate-300 rounded text-xs" placeholder="Cadangan untuk masa depan..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Pengesahan -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <h2 class="font-bold text-purple-900 mb-1 flex items-center gap-2 text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-stamp text-amber-500"></i> 4. Pengesahan
+                </h2>
+                <div class="space-y-2.5">
+                    <div class="border-l-2 border-purple-600 pl-2.5">
+                        <label class="block text-[10px] font-bold text-slate-700 mb-1">Disediakan oleh:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="in-disediakan-nama" placeholder="NAMA" class="p-1.5 border rounded text-xs uppercase">
+                            <input type="text" id="in-disediakan-gelaran" placeholder="JAWATAN" class="p-1.5 border rounded text-xs uppercase">
+                        </div>
+                    </div>
+                    <div class="border-l-2 border-purple-600 pl-2.5">
+                        <label class="block text-[10px] font-bold text-slate-700 mb-1">Disemak oleh:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="in-disemak-nama" placeholder="NAMA" class="p-1.5 border rounded text-xs uppercase">
+                            <input type="text" id="in-disemak-gelaran" placeholder="JAWATAN" class="p-1.5 border rounded text-xs uppercase">
+                        </div>
+                    </div>
+                    <div class="border-l-2 border-purple-600 pl-2.5">
+                        <label class="block text-[10px] font-bold text-slate-700 mb-1">Disahkan oleh:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="in-disahkan-nama" placeholder="NAMA" class="p-1.5 border rounded text-xs uppercase">
+                            <input type="text" id="in-disahkan-gelaran" placeholder="JAWATAN" class="p-1.5 border rounded text-xs uppercase">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="p-3.5 border-t bg-slate-100 flex gap-2 no-print shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button onclick="cetakOPR()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs shadow">
+                <i class="fa-solid fa-print"></i> Cetak Dokumen
+            </button>
+            <button onclick="muatTurunPDF()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs shadow">
+                <i class="fa-solid fa-file-pdf"></i> Ekstrak PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Preview Section (Full width on mobile, 2/3 on desktop) -->
+    <div id="preview-section" class="w-full md:w-2/3 p-3 md:p-6 relative flex flex-col items-center bg-slate-900 md:overflow-y-auto custom-scrollbar">
+        
+        <!-- Scaling Wrapper for Responsive Mobile View -->
+        <div id="paper-scale-wrapper" class="w-full flex justify-center transition-all duration-200 my-auto">
+            
+            <!-- Document A4 Canvas -->
+            <div id="opr-document" class="a4-paper shrink-0">
+                <div id="content-wrapper">
+                    
+                    <!-- HEADER LOGOS & TITLE -->
+                    <div class="flex justify-between items-center mb-1">
+                        <!-- Header Kiri -->
+                        <img src="https://i.postimg.cc/C5dgkqn0/images-(1).png" class="h-[58px] w-auto object-contain" crossorigin="anonymous" alt="Logo KPM">
+                        
+                        <!-- Tajuk Header -->
+                        <div class="text-center flex-1 mx-2 flex flex-col items-center">
+                            <h1 class="font-bold text-[1.1em] tracking-wide m-0 leading-tight">SJK (C) CHIO CHIAO, SALAK</h1>
+                            <h2 class="font-bold text-[1.05em] m-0 leading-tight">BBC 9401</h2>
+                            
+                            <div class="mt-1.5 text-[#e74c3c] font-black text-[1.55em] tracking-widest leading-none drop-shadow-sm">ONE PAGE REPORT</div>
+                            
+                            <div class="mt-1.5 border-b border-black w-full text-center pb-0.5">
+                                <span id="out-nama" class="uppercase font-bold text-[1.02em] leading-tight block"></span>
+                            </div>
+                        </div>
+
+                        <!-- Header Kanan -->
+                        <img src="https://i.postimg.cc/02NPRHcT/sjkccc-logo.png" class="h-[72px] w-auto object-contain" crossorigin="anonymous" alt="Logo Sekolah">
+                    </div>
+
+                    <!-- MAIN TWO-COLUMN BODY -->
+                    <div class="flex flex-row gap-4 flex-1 min-h-0 mt-2.5">
+                        
+                        <!-- LEFT SIDE: Text Content (58% width) -->
+                        <div class="w-[58%] flex flex-col">
+                            
+                            <!-- Details Grid -->
+                            <div class="mb-3 text-[0.88em]">
+                                <div class="details-row"><span class="details-label">TARIKH</span><span class="details-colon">:</span><span id="out-tarikh-hari" class="uppercase font-medium text-slate-900"></span></div>
+                                <div class="details-row"><span class="details-label">MASA</span><span class="details-colon">:</span><span id="out-masa" class="uppercase font-medium text-slate-900"></span></div>
+                                <div class="details-row"><span class="details-label">TEMPAT</span><span class="details-colon">:</span><span id="out-tempat" class="uppercase font-medium text-slate-900"></span></div>
+                                <div class="details-row"><span class="details-label">ANJURAN</span><span class="details-colon">:</span><span id="out-anjuran" class="uppercase font-medium text-slate-900"></span></div>
+                                <div class="details-row"><span class="details-label">SASARAN</span><span class="details-colon">:</span><span id="out-sasaran" class="uppercase font-medium text-slate-900"></span></div>
+                            </div>
+
+                            <!-- Text Boxes Container -->
+                            <div class="flex flex-col gap-1 flex-1">
+                                
+                                <!-- Box 1: Objektif -->
+                                <div class="box-container flex-none">
+                                    <div class="box-title uppercase">OBJEKTIF PROGRAM</div>
+                                    <div id="out-objektif" class="whitespace-pre-wrap text-[0.92em] text-justify leading-snug text-slate-800 min-h-[2.5em]"></div>
+                                </div>
+
+                                <!-- Box 2: Aktiviti -->
+                                <div class="box-container flex-none">
+                                    <div class="box-title uppercase">AKTIVITI PROGRAM</div>
+                                    <div id="out-ringkasan" class="whitespace-pre-wrap text-[0.92em] text-justify leading-snug text-slate-800 min-h-[3.5em]"></div>
+                                </div>
+
+                                <!-- Box 3: Impak -->
+                                <div class="box-container flex-1 mb-2">
+                                    <div class="box-title uppercase">IMPAK PROGRAM</div>
+                                    <div class="text-[0.92em] text-slate-800 leading-snug h-full flex flex-col gap-1.5">
+                                        
+                                        <div id="sec-kekuatan" class="hidden">
+                                            <div class="font-bold text-black mb-0.5">Kekuatan Program:</div>
+                                            <div id="out-kekuatan" class="whitespace-pre-wrap text-justify pl-2 border-l-2 border-slate-300"></div>
+                                        </div>
+                                        
+                                        <div id="sec-kelemahan" class="hidden">
+                                            <div class="font-bold text-black mb-0.5">Kelemahan Program:</div>
+                                            <div id="out-kelemahan" class="whitespace-pre-wrap text-justify pl-2 border-l-2 border-slate-300"></div>
+                                        </div>
+
+                                        <div id="sec-cadangan" class="hidden">
+                                            <div class="font-bold text-black mb-0.5">Cadangan Penambahbaikan:</div>
+                                            <div id="out-cadangan" class="whitespace-pre-wrap text-justify pl-2 border-l-2 border-slate-300"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- RIGHT SIDE: Image Grid (42% width, 2x2 Square Grid) -->
+                        <div class="w-[42%] flex flex-col h-[calc(100%-10px)] pb-3">
+                            <div id="out-images" class="img-grid-2x2">
+                                <div class="img-item flex items-center justify-center text-slate-400 font-bold text-xl" id="box-0"><i class="fa-regular fa-image"></i></div>
+                                <div class="img-item flex items-center justify-center text-slate-400 font-bold text-xl" id="box-1"><i class="fa-regular fa-image"></i></div>
+                                <div class="img-item flex items-center justify-center text-slate-400 font-bold text-xl" id="box-2"><i class="fa-regular fa-image"></i></div>
+                                <div class="img-item flex items-center justify-center text-slate-400 font-bold text-xl" id="box-3"><i class="fa-regular fa-image"></i></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- FOOTER: SIGNATURES -->
+                    <div class="flex justify-between text-[0.78em] mt-auto pt-2 w-full px-2">
+                        <!-- Disediakan -->
+                        <div class="w-1/3 flex flex-col items-center text-center">
+                            <p class="font-bold mb-9 uppercase">DISEDIAKAN OLEH:</p>
+                            <p class="border-b-2 border-slate-900 border-dotted w-4/5 mb-1"></p>
+                            <p class="font-bold uppercase leading-tight" id="out-disediakan-nama"></p>
+                            <p id="out-disediakan-gelaran" class="font-bold uppercase leading-tight text-slate-700"></p>
+                        </div>
+                        <!-- Disemak -->
+                        <div class="w-1/3 flex flex-col items-center text-center">
+                            <p class="font-bold mb-9 uppercase">DISEMAK OLEH:</p>
+                            <p class="border-b-2 border-slate-900 border-dotted w-4/5 mb-1"></p>
+                            <p class="font-bold uppercase leading-tight" id="out-disemak-nama"></p>
+                            <p id="out-disemak-gelaran" class="font-bold uppercase leading-tight text-slate-700"></p>
+                        </div>
+                        <!-- Disahkan -->
+                        <div class="w-1/3 flex flex-col items-center text-center">
+                            <p class="font-bold mb-9 uppercase">DISAHKAN OLEH:</p>
+                            <p class="border-b-2 border-slate-900 border-dotted w-4/5 mb-1"></p>
+                            <p class="font-bold uppercase leading-tight" id="out-disahkan-nama"></p>
+                            <p id="out-disahkan-gelaran" class="font-bold uppercase leading-tight text-slate-700"></p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_FONT_SIZE = 10.5;
+        
+        // Auto-Scale Preview Paper for Mobile Viewports
+        function scalePreviewPaper() {
+            const previewSection = document.getElementById('preview-section');
+            const paper = document.getElementById('opr-document');
+            const wrapper = document.getElementById('paper-scale-wrapper');
+            if (!previewSection || !paper || !wrapper) return;
+
+            // Do not scale when generating PDF
+            if (paper.classList.contains('pdf-generating')) {
+                wrapper.style.transform = 'none';
+                wrapper.style.height = 'auto';
+                return;
+            }
+
+            // Calculate available width for paper inside preview container
+            const padding = window.innerWidth < 768 ? 20 : 48;
+            const containerWidth = previewSection.clientWidth - padding;
+            const targetWidth = 794; // ~210mm in pixels at 96 DPI
+
+            if (containerWidth < targetWidth && containerWidth > 0) {
+                const scale = containerWidth / targetWidth;
+                wrapper.style.transform = `scale(${scale})`;
+                wrapper.style.transformOrigin = 'top center';
+                
+                // Adjust height of wrapper to eliminate blank space below scaled paper
+                const originalHeightPx = 1122; // ~297mm in pixels
+                const scaledHeight = originalHeightPx * scale;
+                wrapper.style.height = `${scaledHeight + 16}px`;
+            } else {
+                wrapper.style.transform = 'none';
+                wrapper.style.height = 'auto';
+            }
+        }
+
+        // Smooth scroll to section for mobile users
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Auto-Resize Text Content to fit exactly within one A4 page
+        function autoResizeContent() {
+            const wrapper = document.getElementById('content-wrapper');
+            const paper = document.getElementById('opr-document');
+            if(!wrapper || !paper) return;
+            
+            wrapper.style.fontSize = BASE_FONT_SIZE + 'pt';
+            
+            setTimeout(() => {
+                let currentSize = BASE_FONT_SIZE;
+                const maxHeight = paper.clientHeight - 18; 
+                
+                while (wrapper.scrollHeight > maxHeight && currentSize > 7) {
+                    currentSize -= 0.2;
+                    wrapper.style.fontSize = currentSize + 'pt';
+                }
+            }, 10);
+        }
+
+        // Helper function for mapping inputs to outputs
+        function bindText(inputId, outputId, transform = 'none', hideContainerId = null) {
+            const inputElement = document.getElementById(inputId);
+            const outputElement = document.getElementById(outputId);
+            if (!inputElement || !outputElement) return;
+            
+            inputElement.addEventListener('input', (e) => {
+                let val = e.target.value;
+                
+                if (transform === 'uppercase') {
+                    outputElement.innerText = val.toUpperCase();
+                } else if (transform === 'bracket-upper') {
+                    outputElement.innerText = val ? `( ${val.toUpperCase()} )` : '';
+                } else if (transform === 'bullet') {
+                    if(val) {
+                         const lines = val.split('\n').filter(line => line.trim() !== '');
+                         if(lines.length > 1 || val.includes('\n')) {
+                            outputElement.innerHTML = `<ul class="list-disc pl-4 space-y-0.5">${lines.map(l => `<li>${l}</li>`).join('')}</ul>`;
+                         } else {
+                            outputElement.innerText = val;
+                         }
+                    } else {
+                        outputElement.innerText = '';
+                    }
+                } else {
+                    outputElement.innerText = val;
+                }
+
+                if (hideContainerId) {
+                    const container = document.getElementById(hideContainerId);
+                    if (container) {
+                        if (val.trim() === '') container.classList.add('hidden');
+                        else container.classList.remove('hidden');
+                    }
+                }
+
+                autoResizeContent();
+            });
+        }
+
+        // Format Date and Time properly
+        function updateDateTime() {
+            const dateInput = document.getElementById('in-tarikh').value;
+            const dayInput = document.getElementById('in-hari');
+            const outDateDay = document.getElementById('out-tarikh-hari');
+            
+            const senaraiHari = ['AHAD', 'ISNIN', 'SELASA', 'RABU', 'KHAMIS', 'JUMAAT', 'SABTU'];
+            
+            let dateStr = '';
+            let dayStr = '';
+
+            if (dateInput) {
+                const parts = dateInput.split('-');
+                dateStr = `${parts[2]}.${parts[1]}.${parts[0]}`;
+                const tarikhObj = new Date(dateInput);
+                dayStr = senaraiHari[tarikhObj.getDay()];
+                dayInput.value = dayStr;
+            } else {
+                dayInput.value = '';
+            }
+            
+            if (dateStr && dayStr) outDateDay.innerText = `${dateStr} (${dayStr})`;
+            else if (dateStr) outDateDay.innerText = dateStr;
+            else outDateDay.innerText = '';
+
+            // Handle Time
+            const tMula = document.getElementById('in-masa-mula').value;
+            const tTamat = document.getElementById('in-masa-tamat').value;
+            const outMasa = document.getElementById('out-masa');
+            
+            function formatTimeMY(time24) {
+                if(!time24) return '';
+                let [h, m] = time24.split(':');
+                h = parseInt(h);
+                let suffix = 'A.M.';
+                if (h >= 12) {
+                    suffix = 'P.M.';
+                }
+                h = h % 12;
+                h = h ? h : 12; 
+                let hrStr = h < 10 ? `0${h}` : h; 
+                return `${hrStr}:${m} ${suffix}`;
+            }
+
+            let mStr = '';
+            if(tMula && tTamat) mStr = `${formatTimeMY(tMula)} - ${formatTimeMY(tTamat)}`;
+            else if(tMula) mStr = formatTimeMY(tMula);
+            
+            outMasa.innerText = mStr;
+            autoResizeContent();
+        }
+
+        document.getElementById('in-tarikh').addEventListener('input', updateDateTime);
+        document.getElementById('in-masa-mula').addEventListener('input', updateDateTime);
+        document.getElementById('in-masa-tamat').addEventListener('input', updateDateTime);
+
+        // Bind standard text fields
+        bindText('in-nama', 'out-nama', 'uppercase');
+        bindText('in-tempat', 'out-tempat', 'uppercase');
+        bindText('in-sasaran', 'out-sasaran', 'uppercase');
+        bindText('in-anjuran', 'out-anjuran', 'uppercase');
+
+        // Bind textareas
+        bindText('in-objektif', 'out-objektif');
+        bindText('in-ringkasan', 'out-ringkasan');
+        bindText('in-kekuatan', 'out-kekuatan', 'bullet', 'sec-kekuatan');
+        bindText('in-kelemahan', 'out-kelemahan', 'bullet', 'sec-kelemahan');
+        bindText('in-cadangan', 'out-cadangan', 'bullet', 'sec-cadangan');
+
+        // Bind Verification
+        bindText('in-disediakan-nama', 'out-disediakan-nama', 'bracket-upper');
+        bindText('in-disediakan-gelaran', 'out-disediakan-gelaran', 'uppercase');
+        bindText('in-disemak-nama', 'out-disemak-nama', 'bracket-upper');
+        bindText('in-disemak-gelaran', 'out-disemak-gelaran', 'uppercase');
+        bindText('in-disahkan-nama', 'out-disahkan-nama', 'bracket-upper');
+        bindText('in-disahkan-gelaran', 'out-disahkan-gelaran', 'uppercase');
+
+        // Image Pan/Drag Logic
+        function makeDraggable(container, img) {
+            let currentX = 50;
+            let currentY = 50;
+            img.style.objectPosition = `${currentX}% ${currentY}%`;
+            
+            let startX, startY;
+
+            const doDrag = (e) => {
+                e.preventDefault();
+                const x = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+                const y = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+                
+                const dx = x - startX;
+                const dy = y - startY;
+                
+                let newX = currentX - (dx * 0.25);
+                let newY = currentY - (dy * 0.25);
+                
+                newX = Math.max(0, Math.min(100, newX));
+                newY = Math.max(0, Math.min(100, newY));
+                
+                img.style.objectPosition = `${newX}% ${newY}%`;
+                
+                startX = x;
+                startY = y;
+                currentX = newX;
+                currentY = newY;
+            };
+            
+            const stopDrag = () => {
+                window.removeEventListener('mousemove', doDrag);
+                window.removeEventListener('mouseup', stopDrag);
+                window.removeEventListener('touchmove', doDrag);
+                window.removeEventListener('touchend', stopDrag);
+            };
+
+            const startDrag = (e) => {
+                startX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+                startY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+                
+                window.addEventListener('mousemove', doDrag, {passive: false});
+                window.addEventListener('mouseup', stopDrag);
+                window.addEventListener('touchmove', doDrag, {passive: false});
+                window.addEventListener('touchend', stopDrag);
+            };
+            
+            container.addEventListener('mousedown', startDrag);
+            container.addEventListener('touchstart', startDrag, {passive: false});
+        }
+
+        function replaceWithClone(element) {
+            const clone = element.cloneNode(true);
+            element.parentNode.replaceChild(clone, element);
+            return clone;
+        }
+
+        // Handle Image Upload
+        const imageInput = document.getElementById('in-gambar');
+        const warningTxt = document.getElementById('img-warning');
+
+        imageInput.addEventListener('change', function() {
+            const files = Array.from(this.files);
+            const filesToProcess = files.slice(0, 4);
+            
+            if(files.length > 4) warningTxt.classList.remove('hidden');
+            else warningTxt.classList.add('hidden');
+
+            for(let i = 0; i < 4; i++) {
+                let box = document.getElementById(`box-${i}`);
+                box = replaceWithClone(box);
+                box.className = "img-item flex items-center justify-center text-slate-400 font-bold text-xl";
+                box.innerHTML = `<i class="fa-regular fa-image"></i>`;
+                box.style.cursor = 'default';
+            }
+
+            filesToProcess.forEach((file, i) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    let box = document.getElementById(`box-${i}`);
+                    box.className = "img-item drag-container bg-white";
+                    box.innerHTML = `<img src="${e.target.result}" draggable="false" crossorigin="anonymous">`;
+                    makeDraggable(box, box.querySelector('img'));
+                }
+                reader.readAsDataURL(file);
+            });
+            
+            setTimeout(() => {
+                autoResizeContent();
+                scalePreviewPaper();
+            }, 100);
+        });
+
+        // Print Functionality
+        function cetakOPR() {
+            autoResizeContent();
+            window.scrollTo(0, 0);
+            document.getElementById('preview-section').scrollTop = 0;
+            
+            setTimeout(() => {
+                window.print();
+            }, 250);
+        }
+
+        // PDF Download Functionality
+        function muatTurunPDF() {
+            autoResizeContent();
+            window.scrollTo(0, 0);
+            
+            const element = document.getElementById('opr-document');
+            const wrapper = document.getElementById('paper-scale-wrapper');
+            let progName = document.getElementById('in-nama').value;
+            let filename = progName ? `OPR_${progName.replace(/\s+/g, '_')}.pdf` : 'OPR_SJKC_Chio_Chiao.pdf';
+
+            // Temporarily reset scaling for high-res unwarped PDF generation
+            element.classList.add('pdf-generating');
+            if (wrapper) {
+                wrapper.style.transform = 'none';
+                wrapper.style.height = 'auto';
+            }
+
+            const opt = {
+                margin:       0,
+                filename:     filename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 3, 
+                    useCORS: true, 
+                    letterRendering: true, 
+                    scrollY: 0,
+                    windowWidth: 1200
+                },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const btn = document.querySelector('button.bg-amber-600');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengekstrak...';
+            btn.disabled = true;
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.classList.remove('pdf-generating');
+                scalePreviewPaper();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error('Ralat ketika muat turun PDF:', err);
+                element.classList.remove('pdf-generating');
+                scalePreviewPaper();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        // Responsive Scaling Event Listeners
+        window.addEventListener('resize', () => {
+            scalePreviewPaper();
+            autoResizeContent();
+        });
+
+        window.onload = () => {
+            autoResizeContent();
+            scalePreviewPaper();
+        };
+    </script>
+</body>
+</html>
